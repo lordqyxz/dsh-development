@@ -1,17 +1,17 @@
 # dsh-development
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Cursor Agent Skill](https://img.shields.io/badge/Cursor-Agent%20Skill-000000)](https://cursor.com/docs/agent/skills)
+[![Agent Skill](https://img.shields.io/badge/format-Agent%20Skill-6366f1)](https://agentskills.io)
 
-**DeepSeek Harness (DSH) 插件 / 工具开发的 Cursor Agent Skill** — 教 AI 助手如何写 Cordis 插件、安装 bundle、调试配置与客户端 UI。
+**跨 Agent 通用的 DeepSeek Harness (DSH) 插件 / 工具开发 Skill** — 供 Cursor、Claude Code、Codex 等 AI 助手加载，指导 Cordis 插件编写、bundle 安装、配置调试与客户端 UI。
 
-[Cursor Agent Skill](https://cursor.com/docs/agent/skills) for **DeepSeek Harness (DSH)** plugin and tool development.
+A **portable Agent Skill** (standard `SKILL.md` + `references/`) for **DeepSeek Harness (DSH)** plugin and tool development — works with any agent that supports the [Agent Skills](https://agentskills.io) format.
 
 ---
 
 ## 简介
 
-本仓库是一份可安装的 Agent Skill，覆盖 DSH 插件开发常见路径：
+本仓库遵循 **Agent Skills 开放格式**（根目录 `SKILL.md` + YAML frontmatter + 可选参考文件），**不绑定单一 IDE 或厂商**：
 
 | 主题 | 内容 |
 |---|---|
@@ -21,9 +21,24 @@
 | 客户端 UI | 设置页槽位、webServer 路由、settings 白名单规避 |
 | 排障 | 重启语义、duplicate id、升级 fallback、已知坑 |
 
-采用**渐进披露**：`SKILL.md`（~100 行）作任务路由，细节在 `references/` 按需加载，符合 [Cursor Skill 最佳实践](https://cursor.com/docs/agent/skills)。
+采用**渐进披露**：`SKILL.md`（~100 行）作任务路由，细节在 `references/` 按需加载。
 
 **上游文档**：[deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)（本 skill 索引其 `docs/`，并附带少量离线中文副本）。
+
+---
+
+## 兼容的 Agent
+
+只要支持从技能目录加载 `SKILL.md` 的 Agent 均可使用，例如：
+
+| Agent | 典型技能目录 |
+|---|---|
+| **通用（推荐）** | `~/.agents/skills/` |
+| Cursor | `~/.cursor/skills/` |
+| Claude Code | `~/.claude/skills/` 或 `~/.agents/skills/` |
+| 其他 | 见各产品文档中的 skills / rules 路径 |
+
+同一仓库 clone 或 symlink 到对应目录即可，**无需改内容**。
 
 ---
 
@@ -41,17 +56,20 @@
 ## 安装
 
 ```bash
-# 推荐：Claude / Cursor agents 技能目录
+# 推荐：跨 Agent 共享目录
 git clone https://github.com/lordqyxz/dsh-development.git ~/.agents/skills/dsh-development
 
-# 或 Cursor 个人 skills
+# Cursor
 git clone https://github.com/lordqyxz/dsh-development.git ~/.cursor/skills/dsh-development
+
+# Claude Code（若使用 ~/.claude/skills）
+git clone https://github.com/lordqyxz/dsh-development.git ~/.claude/skills/dsh-development
 
 # 或软链到已有 checkout
 ln -s /path/to/dsh-development ~/.agents/skills/dsh-development
 ```
 
-重启 Cursor 或新开 Agent 会话后即可被发现。
+安装后**重启 Agent 或新开会话**，由 Agent 根据 `description` 自动匹配加载。
 
 ---
 
@@ -59,7 +77,7 @@ ln -s /path/to/dsh-development ~/.agents/skills/dsh-development
 
 ```
 dsh-development/
-├── SKILL.md              # 入口：任务路由 + 快速开始 + TL;DR
+├── SKILL.md              # 入口：frontmatter + 任务路由 + 快速开始
 ├── references/           # 专题参考（按需阅读）
 │   ├── plugins.md        # 安装 / 卸载 / bundle / CLI
 │   ├── restart.md        # 热更 vs 重启
@@ -91,7 +109,7 @@ cd ~/.agents/skills/dsh-development && git pull
 
 ## 标签
 
-`cursor` · `agent-skill` · `deepseek-harness` · `dsh` · `cordis` · `plugin-development` · `cursor-agent`
+`agent-skill` · `ai-agent` · `deepseek-harness` · `dsh` · `cordis` · `plugin-development`
 
 ---
 

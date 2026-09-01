@@ -1,8 +1,9 @@
 ---
 name: dsh-development
 description: >-
-  DSH（DeepSeek Harness）插件与工具开发指南：Cordis 插件、profile/bundle 安装、工具规约、
-  客户端 UI、Conversation Node、LLM 适配器。在用户开发/安装/调试 DSH 插件、
+  跨 Agent 通用的 DSH（DeepSeek Harness）插件与工具开发 Skill（标准 SKILL.md 格式）：
+  Cordis 插件、profile/bundle 安装、工具规约、客户端 UI、Conversation Node、LLM 适配器。
+  在 Cursor / Claude Code / Codex 等 Agent 中开发、安装或调试 DSH 插件，
   `dsh plugin add`、cordis.patch.yml、配置不生效、settings 白名单、升级后故障时使用。
 ---
 
