@@ -26,6 +26,10 @@ dsh web --patch ./scratch-plugin/cordis.yml    # 或 pnpm dsh web --patch ...（
 
 原型验证通过后 → 按[打包与发布（作者侧）](#打包与发布作者侧-bundle) 做成 bundle → `dsh plugin add` 装进 profile。
 
+### 动态注入与 profile bundle 的边界
+
+super-injector 的 `dev_inject_plugin` 是运行时直接注入：它记录 registry、建立 profile link 并调用 loader，不要求包声明 `dsh.bundle`。`dev_install_package` 则把包写入 profile 的 `dependencies` 和 `dsh.profile.bundles`，所以目标包必须在 `package.json` 声明 `dsh.bundle.patch`；只声明 `dsh.client` 的 hybrid 包不能直接走 `dev_install_package`，否则新版 dsh 会在启动时拒绝该 profile。需要持久安装时，为 host entry 提供一个 bundle patch；只做本地试验时使用 `dev_inject_plugin`。
+
 ### 两个概念（官方）
 
 二者都在 `package.json` 的 `dsh` 键下，但 manifest 种类不同，**一个包不能同时是两者**：
@@ -170,6 +174,7 @@ ls -l ~/.dsh/profiles/node_modules/@deepseek-ai/dsh-host-webserver
 | `Cannot find package 'foo' imported from .../profiles/web/` | bundle patch 的 `name:` 是包内 `package.json` 的 name，但 `dependencies` 键是 GitHub 装配别名（如 `@omdsh-dev/foo` vs `@changfenhuang/foo`） | **bundles 只保留一个**；`dependencies` 用与 patch `name:` **一致**的键（或额外加 alias 依赖，但**不要**对 alias 再 `plugin add`，否则 reconcile 会把两个都塞进 bundles → duplicate） |
 | 首页 `/` HTTP 400，静态资源 200 | `profiles/node_modules` 里核心包仍链到旧版 dsh | 升级后跑上面 ritual；必要时重建 fallback（见 `healProfilesModuleFallback`） |
 | `add` 后无 bundle 层 | 包无 `dsh.bundle` 声明 | 正常——纯库依赖；要激活层需作者加 `dsh.bundle` 或用户 patch insert（非 bundle 插件） |
+| `profile bundle ... declares no dsh.bundle` | 普通插件被写入 `dsh.profile.bundles`，或 bundle manifest 缺少 `dsh.bundle.patch` | 从 bundles 移除该包并用 `dev_inject_plugin`，或补齐 bundle patch 后重新安装并重启 |
 | git `add` 失败 / 装完无 `lib/` | 缺 `allowBuilds` 或缺 `prepare` | 见上节 |
 
 ## 打包与发布（作者侧 bundle）
@@ -204,4 +209,3 @@ ls -l ~/.dsh/profiles/node_modules/@deepseek-ai/dsh-host-webserver
 ```
 
 - 表层组合包若持有 CLI：挂载 `inject = ['cmdlineArgs']` 的 startup 插件 + 行内 `!!js` 读 `ctx.*Startup`（官方 publish 教程后半；例：`port: !!js ctx.webStartup.port ?? 3080`）。
-

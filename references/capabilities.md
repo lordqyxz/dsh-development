@@ -26,6 +26,10 @@ export function apply(ctx: Context) {
 
 *协议驱动*插件把外部对端接到 `ctx.agents`：工厂创建/恢复 agent，协议请求映射为 `followup()` 或 `cancel()`，状态单独发布。完整范例：`packages/acp/acp`（ACP JSON-RPC stdio，见该包 README）。
 
+### MCP 桥（外部工具体系接入，0.1.5-rc.1 起）
+
+外部系统已有现成 MCP server 时不必重写成 Cordis 插件：官方 `@deepseek-ai/dsh-mcp-client` 桥接插件经 `cordis.patch.yml` insert 连接 server，把其工具注册为 `mcp__<serverName>__<rawName>` 原生工具；需要设置面板 / 客户端 UI / 宿主状态时才用纯插件承载外部 server 子进程。两条路径与配置键详见 [mcp.md](mcp.md)。
+
 ### 功能 → 机制（速查）
 
 | 想做什么 | 挂哪里 |
@@ -36,6 +40,7 @@ export function apply(ctx: Context) {
 | 渲染会话 UI | `session/event` + `agents` |
 | Chat 自定义行 | `ConversationNodeDefinition`（client） |
 | 外部 IDE/CLI 接 agent | 协议桥 + `ctx.agents` / `ctx.sessions` |
+| 接外部系统现成的 MCP 工具 | `@deepseek-ai/dsh-mcp-client` 桥接或纯插件承载（[mcp.md](mcp.md)） |
 
 ## Web Chat 自定义行（Conversation Node）
 

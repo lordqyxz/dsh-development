@@ -18,12 +18,13 @@ A **portable Agent Skill** (standard `SKILL.md` + `references/`) for **DeepSeek 
 | 插件安装 | `dsh plugin add/remove`、profile / bundle、层序、`--patch` 原型 |
 | Cordis | 概念、Fiber 状态机、Config schema、插件写法 |
 | 能力扩展 | 工具规约、Conversation Node、LLM 适配器、扩展钩子 |
+| MCP 桥接 | 官方 `@deepseek-ai/dsh-mcp-client` 与纯插件承载的选型、配置键、`mcp__<name>__*` 工具命名 |
 | 客户端 UI | 设置页槽位、webServer 路由、settings 白名单规避 |
 | 排障 | 重启语义、duplicate id、升级 fallback、已知坑 |
 
 采用**渐进披露**：`SKILL.md`（~100 行）作任务路由，细节在 `references/` 按需加载。
 
-**上游文档**：[deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)（本 skill 索引其 `docs/`，并附带少量离线中文副本）。
+**上游文档**：[deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)（MIT，本 skill 索引其 `docs/`，并附带少量离线中文副本）· [文档站](https://deepseek-harness.github.io/deepseek-harness/)。
 
 ---
 
@@ -47,6 +48,7 @@ A **portable Agent Skill** (standard `SKILL.md` + `references/`) for **DeepSeek 
 在以下场景让 Agent 加载本 skill：
 
 - 开发 / 安装 / 调试 **DSH 插件**或工具
+- 接入外部 **MCP server**（`@deepseek-ai/dsh-mcp-client`、`mcp__<name>__*` 工具命名）
 - `dsh plugin add`、`cordis.patch.yml`、bundle 重复 insert
 - 配置保存不生效、settings 白名单、`duplicate loader entry id`
 - DSH 升级后首页 400、客户端 UI、Chat 自定义行
@@ -84,6 +86,7 @@ dsh-development/
 │   ├── cordis.md         # Cordis 概念与插件写法
 │   ├── architecture.md   # 架构与扩展点映射
 │   ├── capabilities.md   # 工具 / Conversation Node / LLM
+│   ├── mcp.md            # MCP 桥接：官方/社区路径与选型
 │   ├── client-ui.md      # 设置页 / 槽位 / 路由
 │   ├── docs-index.md     # 官方文档索引
 │   ├── environment.md    # 本机 $DSH_HOME 事实

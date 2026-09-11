@@ -4,6 +4,10 @@
 
 宿主插件负责**服务端逻辑**（webServer 路由、settings namespace、引擎），客户端插件负责**浏览器 UI**（设置页/侧栏 widget/会话 tab）。两半区通过**同源 HTTP 路由**通信（客户端 `fetch('/xxx/...')` → 宿主 `ctx.webServer.register` 的 handler）。完整可运行范例：`/Users/apple/dev/dsh-config-sync`（设置页「配置同步」+ 三路由 + settings ns）。
 
+### webServer 路由契约
+
+Web profile 的 HTTP 服务键是 `webServer`（大写 `S`），由 `@deepseek-ai/dsh-host-webserver` 提供。宿主插件声明 `export const inject = ['webServer']`，并通过 `ctx.webServer.register({ kind, path, handler })` 注册路由；路由字段是 `handler`，不是 `server`、`registerRoute` 或 `handle`。注册应放在 `ctx.effect()` 中，以便插件卸载时自动移除路由。
+
 ### 包结构（package.json 三件套，client-modules 发现必需）
 
 ```jsonc
@@ -175,4 +179,3 @@ DSH 的 shell 客户端包（如 `dsh-client-ui-settings-general`）渲染的设
 - **扁平化 mask/clipPath**：官方 SVG 常以 `<mask>` 定义形状 + 矩形填充色被 mask clip；可等价改写为"路径直接填色"（mask 内 path 可见形状 = 该 path 填色），**避免同一 SVG 在 DOM 挂载多次时共享 `<mask id>`/`<clipPath id>` 冲突**。几何等价验证：用 `sharp` 把原图与扁平图栅格化逐像素对比（亚像素抗锯齿差 ≤ 个位数可忽略）。
 - **React 内联 SVG 属性用驼峰**：`shapeRendering`（非 `shape-rendering`），否则 React 告警。
 - 在 DSH 里：放进设置页内容/额度卡片用本模块；放进设置面板左侧导航 tab 图标见[在设置里加 logo](#在设置里加-logo--dsh-定制-shell-渲染)。
-

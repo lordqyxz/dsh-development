@@ -2,9 +2,9 @@
 name: dsh-development
 description: >-
   跨 Agent 通用的 DSH（DeepSeek Harness）插件与工具开发 Skill（标准 SKILL.md 格式）：
-  Cordis 插件、profile/bundle 安装、工具规约、客户端 UI、Conversation Node、LLM 适配器。
+  Cordis 插件、profile/bundle 安装、MCP 桥接（dsh-mcp-client）、工具规约、客户端 UI、Conversation Node、LLM 适配器。
   在 Cursor / Claude Code / Codex 等 Agent 中开发、安装或调试 DSH 插件，
-  `dsh plugin add`、cordis.patch.yml、配置不生效、settings 白名单、升级后故障时使用。
+  `dsh plugin add`、cordis.patch.yml、接入外部 MCP server、配置不生效、settings 白名单、升级后故障时使用。
 ---
 
 # DSH Development
@@ -18,12 +18,13 @@ description: >-
 | Cordis 概念、Fiber、插件写法、Config | [references/cordis.md](references/cordis.md) |
 | 架构、ctx 服务、扩展点映射 | [references/architecture.md](references/architecture.md) |
 | 工具、扩展形态、Conversation Node、LLM 适配器 | [references/capabilities.md](references/capabilities.md) |
+| 接外部 MCP server（官方桥 / 社区插件承载）、选型 | [references/mcp.md](references/mcp.md) |
 | 设置页、槽位、webServer 路由、logo | [references/client-ui.md](references/client-ui.md) |
 | 官方文档路径、cordis-api、subsystems 索引 | [references/docs-index.md](references/docs-index.md) |
 | 本机 `$DSH_HOME`、web profile、参考插件 | [references/environment.md](references/environment.md) |
 | 验证清单、已知坑、省 token 技巧 | [references/troubleshooting.md](references/troubleshooting.md) |
 
-离线中文副本与路径映射：`docs-official/INDEX.md`。官方全文克隆：`/Users/apple/dev/deepseek-harness/docs/`。
+离线中文副本与路径映射：`docs-official/INDEX.md`。官方全文克隆：`/Users/apple/dev/deepseek-harness/docs/`。DSH 已开源：[deepseek-ai/deepseek-harness](https://github.com/deepseek-ai/deepseek-harness)（MIT，基于 Cordis，"Everything is a Plugin"）· [文档站](https://deepseek-harness.github.io/deepseek-harness/)。
 
 ## 快速开始
 
@@ -85,13 +86,14 @@ export function apply(ctx: Context) {
 - **GitHub 包名 alias**：`dependencies` 键须与 bundle patch 的 `name:` 一致；bundles 只列一份。
 - **升级后首页 400**：`profiles/node_modules` 仍链旧 dsh → `pnpm install` + 查 `dsh-host-webserver` 软链。
 - **设置保存假成功**：第三方 `settingsScope` 被白名单拒 → 走插件自有路由 + 宿主 `scope.update`（[client-ui.md](references/client-ui.md)）。
-- **curl 200 HTML**：未注册路由 SPA 兜底 → 看 `content-type` 是否为 `application/json`。
+- **curl 200 HTML**：未注册路由回退 SPA 首页 → 看 `content-type` 是否为 `application/json`。
 
 ## 本机环境（摘要）
 
 | 项 | 值 |
 |---|---|
 | GUI | `http://127.0.0.1:3080` |
+| 启动 | `npx @deepseek-ai/dsh web`；`dsh --profile <name>` 多配置隔离 |
 | `$DSH_HOME` | `~/.dsh` |
 | web profile | `~/.dsh/profiles/web/` |
 | 官方克隆 | `/Users/apple/dev/deepseek-harness` |

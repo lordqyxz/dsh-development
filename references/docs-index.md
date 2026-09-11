@@ -22,6 +22,7 @@
 | 工具编写参考（真源） | `cookbook/adding-a-tool.md` | 最小形态、execute 约定、扩展点、UI 卡片、后台任务 |
 | 扩展形态参考 | `cookbook/extension-cookbook.md` | 钩子/UI 插件/协议桥 + 功能→机制映射表 |
 | 核心 API 参考 | `cordis-api/context.md` 等 | 生成的服务/事件/配置目录 |
+| **MCP 桥接（0.1.5-rc.1 起）** | 仓库 `packages/mcp/mcp-client/README.md`（在 `docs/` 之外）+ `config-catalog.md` 的 `@deepseek-ai/dsh-mcp-client` 节 | 官方桥接插件：每 server 一个实例的配置键、`mcp__<serverName>__<rawName>` 工具命名、重连策略（skill 摘要见 [mcp.md](mcp.md)） |
 
 **Cordis 教程章节**（`cordis-tutorial/`，在 `tmp/cordis-tutorial` 动手，无需 API 密钥）：
 

@@ -70,6 +70,7 @@
 | 拦截请求/工具/轮次 | 用对应 `agent/*` 或 `tools/*` 事件；`agent/turn-stopping` 停一轮 |
 | 加模型向上下文 | `agent.inject()`；落在下一次被接纳的请求 |
 | 加 UI/编辑器集成 | 驱动 `ctx.agents`，从 `session/event` 渲染 |
+| 接外部系统现成的 MCP 工具 | `@deepseek-ai/dsh-mcp-client` 桥接或纯插件承载（[mcp.md](mcp.md)） |
 | 加 Web 客户端 Chat 节点 | 注册 `ConversationNodeDefinition` + keyed renderer |
 | 加持久会话状态 | 扩 `SessionEventMap`；从日志渲染/回放 |
 | 生成会话标题 | 注册唯一 `ctx.sessionTitle` provider |
