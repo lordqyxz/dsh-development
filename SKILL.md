@@ -87,6 +87,7 @@ export function apply(ctx: Context) {
 - **升级后首页 400**：`profiles/node_modules` 仍链旧 dsh → `pnpm install` + 查 `dsh-host-webserver` 软链。
 - **设置保存假成功**：第三方 `settingsScope` 被白名单拒 → 走插件自有路由 + 宿主 `scope.update`（[client-ui.md](references/client-ui.md)）。
 - **curl 200 HTML**：未注册路由回退 SPA 首页 → 看 `content-type` 是否为 `application/json`。
+- **`agents.create` 不传 `setup` = 空全局层**：`meta.agentPreset` 只写会话 header、不挂载组合（无 bash/fs/skill，**创建成功不报错**）；程序化建会话必须 `setup: (agentCtx) => ctx.agentPresets.mount(agentCtx, id?)`，验证看会话日志 `request/header` 的实际工具清单（[architecture.md](references/architecture.md) / [troubleshooting.md](references/troubleshooting.md)）。
 
 ## 本机环境（摘要）
 

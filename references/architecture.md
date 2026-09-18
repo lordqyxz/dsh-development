@@ -77,6 +77,16 @@
 | 管同一会话目标 | 用 `ctx.goals`；经 `agent/*` 继续 |
 | Fork 活会话 | `ctx.sessions.fork(source, boundary?, childSessionId?)` |
 | 作用域注册到单 agent | 用该 agent 的 `agent.ctx` |
+| 程序化建会话 | `ctx.agents.create` + **setup 挂 preset**（见下节，漏 setup = 空全局层） |
+
+### 程序化创建会话：组合必须经 setup 挂载（2026-09-18 实证）
+
+`ctx.agents.create({ sessionId, meta, setup })` 是插件/协议桥建会话的正路，两条铁律：
+
+- **组合（工具/技能/提示词段落）只认 `setup(agentCtx)` 钩子**。`meta.agentPreset` 只是会话 header 的创建事实记录，工厂不读它做挂载——漏传 setup 时 agent 以「空全局层」发布：工具目录只剩宿主面插件注册的工具，bash/fs/run_code/skill 全缺，技能目录不存在，且**创建成功、无任何报错**（agent-presets 服务只在日志里 warn 一句）。
+- **正确形状**：`setup: (agentCtx) => ctx.agentPresets.mount(agentCtx, id?)`——id 省略时读 settings `agent-presets.default`（这就是「启动默认 preset」的真实语义：**mount 的参数回退值**，不是创建时的自动副作用）；mount 拒绝会回滚整个 create，要降级就吞掉错误让会话 bare 发布。
+- 预设 = `apps/cli/config/agent-presets/`（或 `~/.dsh/.agent-presets/`）下含 `agent.cordis.yml` 的目录；出厂四预设 standard/ptc/minimal/cordis（0.1.5-rc.1）。**ptc 模式的工具经 run_code SDK 呈现**——会话目录里只有 `run_code` 一个直接工具属正常，不是丢工具。
+- **验证别只看创建成功**：读会话日志 `request/header` 的实际工具清单（与 GUI 会话对比；两类会话同机共存、header 都可能写着同一个 preset id，最会骗人），或让冒烟探针显式回报 preset 挂载结果。故障模式与案例见 [troubleshooting.md](troubleshooting.md)。
 
 ### 核心 ctx 服务索引（能力缝速查，真源 `docs/capability-seams.md` 全量表）
 
@@ -89,6 +99,7 @@
 | `ctx.sessions` | core | 追加式 SessionEvent 日志 + 持久事件流 |
 | `ctx.agents` | core | live Agent 句柄、create/resume 工厂缝、`agent/*` 事件 |
 | `ctx.agentLoop` | bundle | 唯一具体 loop 驱动（扩展依赖 `agent/*` 事件与服务，别依赖本包） |
+| `ctx.agentPresets` | core | agent 预设发现/挂载——**每会话工具/技能/提示词组合的唯一来源**；`agents.create` 必须经 setup 调它 |
 | `ctx.systemPrompt` | core | 每步收集提示词分区 + 模型向工具 schema |
 | `ctx.scope` | core | 每 agent 作用域化注册 |
 | `ctx.subagents` | seam | 子 agent 传输缝（in-process/ACP/Codex/Claude Code/DshSDK）；`tool-subagent` 选一次性/可续 |
