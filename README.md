@@ -59,7 +59,13 @@ A **portable Agent Skill** (standard `SKILL.md` + `references/`) for **DeepSeek 
 ## 安装
 
 ```bash
-# 推荐：跨 Agent 共享目录
+# 推荐：Agent Skills CLI（Cursor / Claude Code / Codex 等自动装到对应目录）
+npx skills add lordqyxz/dsh-development
+
+# 或指定全局安装、非交互
+npx skills add lordqyxz/dsh-development -g -y
+
+# 备选：手动 git clone 到跨 Agent 共享目录
 git clone https://github.com/lordqyxz/dsh-development.git ~/.agents/skills/dsh-development
 
 # Cursor

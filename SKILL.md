@@ -1,5 +1,6 @@
 ---
 name: dsh-development
+license: MIT
 description: >-
   跨 Agent 通用的 DSH（DeepSeek Harness）插件与工具开发 Skill（标准 SKILL.md 格式）：
   Cordis 插件、profile/bundle 安装、MCP 桥接（dsh-mcp-client）、工具规约、客户端 UI、Conversation Node、LLM 适配器。
