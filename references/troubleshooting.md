@@ -5,9 +5,10 @@
 1. **语法**：`node --check lib/index.js`（宿主）与 `node --check lib/client.js`（客户端 bundle）
 2. **全链路模拟**（不起 DSH）：mock ctx（`settings.register` / `webServer.register` / `effect`）+ 临时目录跑引擎；断言关键路径（排除/符号链接/stale 删除/幂等二次 0 复制）
 3. **宿主路由冒烟**（mock ctx 驱动 webServer handler，用 `Readable` stream 模拟 body）：`GET /xxx/status` 回布尔且**不回显 secret**；`POST /xxx/config` 白名单键、空值 400、GET 405、持久化进 `scope.update`
-3. **客户端结构**：模拟浏览器加载 bundle → 断言 exports.apply/inject、slot 条目形状
-4. **真实 API**：`import { createClient }` → `await createClient(config)` → `client.raw({ path: '/api/v4/user' })`
-5. **重启后复验**：curl 宿主路由 + `curl -o /dev/null -w "%{http_code}" /plugins/<id>/client.js`；会话内调工具名，靠报错信息判新旧代码
+4. **依赖清单**：插件自己的 DSH 宿主 import 只能在 `peerDependencies` + `devDependencies`；profile 直接依赖、lockfile、bundle 列表和实际 `require.resolve` 路径一致
+5. **客户端结构**：模拟浏览器加载 bundle → 断言 exports.apply/inject、slot 条目形状；slot 注册必须满足当前宿主的 options schema
+6. **真实 API**：`import { createClient }` → `await createClient(config)` → `client.raw({ path: '/api/v4/user' })`
+7. **重启后复验**：curl 宿主路由 + `curl -o /dev/null -w "%{http_code}" /plugins/<id>/client.js`；会话内调工具名，靠报错信息判新旧代码
 
 ## 优化技巧
 
@@ -31,6 +32,12 @@ DSH 无现成插件——官方仅文档化模式（extension-cookbook：替换�
 - **GitHub 装配名 ≠ package.json name**：loader 按 bundle patch 的 `name:` import；`dependencies` 键若用 GitHub org 别名而包内 name 不同，会 `Cannot find package`。修法：`dependencies` 键与 patch `name:` 保持一致；**bundles 只列一份**——别对 alias 依赖再跑 `plugin add`（`reconcilePlugins` 会把每个带 `dsh.bundle` 的 dependency 都追加进 bundles）。
 - **DSH 升级后 fallback 错位**：`healProfilesModuleFallback` 每次启动跑，但旧 `profiles/node_modules` 软链可能仍指向过期 global/store → 首页 400。升级后 `cd ~/.dsh/profiles/web && pnpm install` + `dump-config` 验合成；查 `dsh-host-webserver` 链接版本。
 - **升级后排障是常态**：DSH 处于开发者预览期，官方明示后续版本会有破坏性变更——每次升级先跑上条 ritual（`pnpm install` + `--dump-config`），再逐插件验证（会话调工具名 / curl 路由，见 [restart.md](restart.md)），最后才定位新故障；MCP 桥接实例的重连状态在日志里可见（reconnecting / recovered / disabled-loss）。
+- **宿主依赖边界**：外部插件 import 的 `@deepseek-ai/dsh-*` 放在 `peerDependencies`，并在 `devDependencies` 镜像同一版本；插件自己运行时需要的库才放 `dependencies`。静态扫描提示“可能遮蔽”时，先改清单，再用 `require.resolve`/realpath 确认实际解析，不要只凭 warning 断言运行时重复。
+- **官方与已安装分类**：first-party 包、安装目录提供的 optional bundle、in-box bundle、profile 直接依赖是四个不同概念。profile 直接 `pnpm add` 可能让官方包出现在“已安装”分组；要恢复安装目录所有权，移除直接依赖，保留必要的 bundle 启用项并重启。
+- **卸载不只看 pnpm**：移除插件后检查 `package.json`、lockfile、`dsh.profile.bundles`、profile/fallback `node_modules` 链接和 `--dump-config`；孤立链接只按精确目标删除，源码 checkout 不动。
+- **`list slot ... requires options.id`**：这是客户端插件与当前 slots 注册契约不匹配，或旧客户端包仍被加载。先从堆栈和 `--dump-config` 找注册插件，核对已安装版本与当前宿主；修复应补齐当前契约要求的 `options.id` 或升级/回退配套插件，不要把某个本地 no-op patch 当成通用方案。
+- **`profile reload requires the root Include entry`**：先确认当前 app-boot 版本的 root Include 约定、`--dump-config` 和 profile bundle 层；不要盲目在用户 patch 中插入 root Include，因为可能掩盖旧安装锚点或重复 loader entry。
+- **`failed to import` 的 generic warning**：先用 `--dump-config` 确认 bundle 已进入组合树，再在插件目录执行 `node --check`/模块导入和 `require.resolve`，检查构建产物、peer 依赖与 `allowBuilds`；只看 UI warning 无法区分导入失败、版本错位和配置未启用。
 - **patch 不能改 entry 的 `name`**：`applyEntryPatches` 里 name 仅校验，不匹配则跳过——别指望用 profile patch 把 `@changfenhuang/foo` 重定向到 `@omdsh-dev/foo`。
 - **服务端 HMR 假象**：`dev_plugin_status` 可能显示一个 active 的 `cordis-plugin-hmr`（自动 id 条目），但**实测改宿主代码不热生效**（改 status 响应加字段，保存 4s 后无变化）——别信运行时有 hmr 就跳过重启。`dsh --profile web --dump-config` 里该条目是 `disabled: true`。
 - **设置"保存成功"是假象**：第三方命名空间走 `settingsScope.set` / `hooks.settings` + `useSettings`，读写在代理层被 `settings-not-exposed` 拒绝且**客户端静默 resolve** → UI 提示"已保存并热生效"但 settings.yaml 无变化。诊断：`grep -c accessKeyId ~/.dsh/settings.yaml` 看落盘没有；改走插件自有路由 + `scope.update`（见 [client-ui.md](client-ui.md#设置页注册settingssection-槽位)）。

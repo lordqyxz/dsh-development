@@ -18,6 +18,7 @@
 | Web UI 第一个插件 | `user/develop/basic/index.md`（发布站 `/en/develop/basic/`） | 最小插件 + `--patch` 覆盖层加载进 GUI |
 | 开发一个工具（step by step） | `user/develop/basic/tool.md` | greet 工具全流程 |
 | **打包与安装插件（官方）** | `user/develop/basic/publish.md` / `.zh.md` | bundle vs profile、`dsh plugin add/remove`、层序、GitHub `allowBuilds` |
+| **添加 package / 依赖约束** | `cookbook/adding-a-package.md` | DSH peer dependency 同步到 `devDependencies`、运行时依赖和 monorepo package 不变量 |
 | 插件配置（schema / 用户覆盖） | `user/develop/basic/config.md` / `.zh.md` | Config schema、patch 按 id 覆盖、整行替换 config |
 | 工具编写参考（真源） | `cookbook/adding-a-tool.md` | 最小形态、execute 约定、扩展点、UI 卡片、后台任务 |
 | 扩展形态参考 | `cookbook/extension-cookbook.md` | 钩子/UI 插件/协议桥 + 功能→机制映射表 |
@@ -79,4 +80,3 @@
 | `cookbook/adding-a-vendored-package.md` | vendor 上游 Cordis 包 |
 | `development.md` | 贡献者 typecheck/build、双 aggregate tsconfig |
 | `cookbook/maintaining-*.md` | 维护者 PR 流程 |
-

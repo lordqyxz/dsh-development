@@ -47,6 +47,8 @@ super-injector 的 `dev_inject_plugin` 是运行时直接注入：它记录 regi
 
 `dsh plugin --profile <name> <args...>` **在 profile 目录内转发给 pnpm**，因此 pnpm 子命令均可用（`install` / `update` / `remove` / …）。
 
+先确认包的所有权再安装：外部插件 import 的 DSH 宿主包走插件自己的 `peerDependencies` + `devDependencies`，不要把它复制到插件 `dependencies`；安装目录已经提供的官方 optional bundle 也不要为了“启用”而再次写入 profile 的直接依赖。依赖分类和卸载审计见 [dependencies.md](dependencies.md)。
+
 ```bash
 # 本地目录（从插件 checkout 里执行 add . 时，dsh 会把相对路径锚定到当前 cwd，不会误链 profile 自身）
 dsh plugin --profile web add /path/to/my-plugin
@@ -68,6 +70,12 @@ dsh plugin --profile web remove my-plugin-package-name      # 同时删 dependen
 **首次** `add` 会初始化 profile（模板 profile 如 `web` 以 `@deepseek-ai/dsh-base` 为第一个 bundle），pnpm 写入 `dependencies`，若包声明 `dsh.bundle` 则 **`dsh` 自动追加到 `dsh.profile.bundles`**——profile manifest **不必手写**。
 
 **Bundle 成员变化须重启**：`plugin add` / `remove` / `update`（激活或移除 bundle 层）成功后只改磁盘上的 `package.json`；**正在运行的 `dsh web` 仍用启动时的 bundle 集合**。改完须重启进程。与之对比：仅编辑 profile 或 home 的 `cordis.patch.yml`（改已有 id 的 config / disabled）可走 loader 热重组，见[重启语义](restart.md)。
+
+### 官方与“已安装”的分类
+
+“官方”通常表示当前安装版本列出的 optional bundle 尚未成为 profile 的直接依赖；“已安装”表示 profile `package.json` 直接声明了该包。后者不等于包不是官方包，而是说明 profile 接管了它的依赖状态。对于安装目录已经提供的官方 optional bundle，保留 `dsh.profile.bundles` 中的启用项，移除 profile 的直接 `dependencies`，重启后再看分类。
+
+不要把 first-party 包名、optional bundle、in-box bundle 和 profile 直接依赖混为一谈。`@deepseek-ai/dsh-subagent-codex` 是否属于当前 UI 的 optional 管理项，必须以当前 DSH 安装版本的 bundle 清单和 profile manifest 为准。
 
 ### 生效层序（官方）
 
@@ -159,6 +167,21 @@ dsh --profile web --dump-config >/dev/null   # 失败则 stderr 直接报 duplic
 # 然后重启 dsh web
 ```
 
+升级后还要做一次依赖审计：`package.json`、lockfile、`dsh.profile.bundles`、`node_modules`/fallback 链接和 `--dump-config` 必须共同指向当前安装锚点。`pnpm outdated` 为空不是充分证明；详见 [dependencies.md](dependencies.md)。
+
+### 卸载后的残留检查
+
+官方文档描述 `dsh plugin remove` 会移除依赖和对应层，但不同 CLI 版本或异常中断可能留下 bundle 列表项或孤立软链。卸载后依次检查：
+
+```bash
+PROFILE="$HOME/.dsh/profiles/web"
+rg -n 'removed-package|removed-plugin-id' "$PROFILE/package.json" "$PROFILE/pnpm-lock.yaml"
+dsh --profile web --dump-config | rg 'removed-package|removed-plugin-id' || true
+find "$PROFILE/node_modules" -type l -lname '*removed-package*' -print
+```
+
+若只剩明确指向已卸载插件 checkout 的软链，删除该软链即可，不能删除源码 checkout；若 `dsh.profile.bundles` 仍有 stale item，先修正 manifest 再重启验证。
+
 启动时官方会跑 `healProfilesModuleFallback`（维护 `$DSH_HOME/profiles/node_modules` 扁平 symlink 闭包），但**不清理**已失效的旧安装路径链接；升级后若首页 `/` 变 400，检查：
 
 ```bash
@@ -175,6 +198,8 @@ ls -l ~/.dsh/profiles/node_modules/@deepseek-ai/dsh-host-webserver
 | 首页 `/` HTTP 400，静态资源 200 | `profiles/node_modules` 里核心包仍链到旧版 dsh | 升级后跑上面 ritual；必要时重建 fallback（见 `healProfilesModuleFallback`） |
 | `add` 后无 bundle 层 | 包无 `dsh.bundle` 声明 | 正常——纯库依赖；要激活层需作者加 `dsh.bundle` 或用户 patch insert（非 bundle 插件） |
 | `profile bundle ... declares no dsh.bundle` | 普通插件被写入 `dsh.profile.bundles`，或 bundle manifest 缺少 `dsh.bundle.patch` | 从 bundles 移除该包并用 `dev_inject_plugin`，或补齐 bundle patch 后重新安装并重启 |
+| 官方包被 UI 归入“已安装” | 安装目录提供的 optional bundle 又被写入 profile `dependencies` | 保留需要的 bundle 启用项，移除 profile 直接依赖，重启后重新检查分类；不要用 UI 分组判断包的发布来源 |
+| “shared host package in dependencies” / 宿主版本可能被遮蔽 | 插件把 DSH 宿主包放在 `dependencies`，可能与 DSH 安装锚点形成另一份运行时树 | 移到 `peerDependencies`，并以相同版本镜像到 `devDependencies`；运行 `pnpm install --lockfile-only` 后检查 realpath 与 dump |
 | git `add` 失败 / 装完无 `lib/` | 缺 `allowBuilds` 或缺 `prepare` | 见上节 |
 
 ## 打包与发布（作者侧 bundle）

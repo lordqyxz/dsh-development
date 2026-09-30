@@ -4,7 +4,7 @@ description: >-
   跨 Agent 通用的 DSH（DeepSeek Harness）插件与工具开发 Skill（标准 SKILL.md 格式）：
   Cordis 插件、profile/bundle 安装、MCP 桥接（dsh-mcp-client）、工具规约、客户端 UI、Conversation Node、LLM 适配器。
   在 Cursor / Claude Code / Codex 等 Agent 中开发、安装或调试 DSH 插件，
-  `dsh plugin add`、cordis.patch.yml、接入外部 MCP server、配置不生效、settings 白名单、升级后故障时使用。
+  `dsh plugin add`、宿主依赖/版本隔离、cordis.patch.yml、接入外部 MCP server、配置不生效、settings 白名单、升级或卸载后故障时使用。
 ---
 
 # DSH Development
@@ -14,6 +14,7 @@ description: >-
 | 你在做… | 读 |
 |---|---|
 | 装/卸/升级插件、`--patch` 原型、bundle 层序 | [references/plugins.md](references/plugins.md) |
+| 宿主依赖、DSH 版本对齐、官方/已安装分类、卸载审计 | [references/dependencies.md](references/dependencies.md) |
 | 判断改动要不要重启 | [references/restart.md](references/restart.md) |
 | Cordis 概念、Fiber、插件写法、Config | [references/cordis.md](references/cordis.md) |
 | 架构、ctx 服务、扩展点映射 | [references/architecture.md](references/architecture.md) |
@@ -85,6 +86,9 @@ export function apply(ctx: Context) {
 - **duplicate loader entry id**：bundle 已 `plugin add`，patch 又 `insert` 同一 id → 只保留 `- id:` 改 config。
 - **GitHub 包名 alias**：`dependencies` 键须与 bundle patch 的 `name:` 一致；bundles 只列一份。
 - **升级后首页 400**：`profiles/node_modules` 仍链旧 dsh → `pnpm install` + 查 `dsh-host-webserver` 软链。
+- **宿主包被插件遮蔽**：外部插件 import 的 `@deepseek-ai/dsh-*` 不应放在 `dependencies`；放入 `peerDependencies`，并以相同版本镜像到 `devDependencies`，详见 [dependencies.md](references/dependencies.md)。
+- **官方插件显示为“已安装”**：先区分安装目录提供的 optional bundle 与 profile 的直接依赖；不要为安装目录已经提供的官方 bundle 再 `pnpm add` 到 profile。
+- **卸载后仍有插件痕迹**：同时检查 profile `package.json`、lockfile、`dsh.profile.bundles`、`node_modules` 链接和 `--dump-config`，再重启验证；不要只看 `pnpm remove` 的退出码。
 - **设置保存假成功**：第三方 `settingsScope` 被白名单拒 → 走插件自有路由 + 宿主 `scope.update`（[client-ui.md](references/client-ui.md)）。
 - **curl 200 HTML**：未注册路由回退 SPA 首页 → 看 `content-type` 是否为 `application/json`。
 - **`agents.create` 不传 `setup` = 空全局层**：`meta.agentPreset` 只写会话 header、不挂载组合（无 bash/fs/skill，**创建成功不报错**）；程序化建会话必须 `setup: (agentCtx) => ctx.agentPresets.mount(agentCtx, id?)`，验证看会话日志 `request/header` 的实际工具清单（[architecture.md](references/architecture.md) / [troubleshooting.md](references/troubleshooting.md)）。

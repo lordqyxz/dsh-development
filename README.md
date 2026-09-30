@@ -16,6 +16,7 @@ A **portable Agent Skill** (standard `SKILL.md` + `references/`) for **DeepSeek 
 | 主题 | 内容 |
 |---|---|
 | 插件安装 | `dsh plugin add/remove`、profile / bundle、层序、`--patch` 原型 |
+| 依赖边界 | DSH 宿主 peer/dev 依赖、版本对齐、官方/已安装分类、卸载残留审计 |
 | Cordis | 概念、Fiber 状态机、Config schema、插件写法 |
 | 能力扩展 | 工具规约、Conversation Node、LLM 适配器、扩展钩子 |
 | MCP 桥接 | 官方 `@deepseek-ai/dsh-mcp-client` 与纯插件承载的选型、配置键、`mcp__<name>__*` 工具命名 |
@@ -82,6 +83,7 @@ dsh-development/
 ├── SKILL.md              # 入口：frontmatter + 任务路由 + 快速开始
 ├── references/           # 专题参考（按需阅读）
 │   ├── plugins.md        # 安装 / 卸载 / bundle / CLI
+│   ├── dependencies.md   # 宿主依赖 / 版本对齐 / 官方分类 / 卸载审计
 │   ├── restart.md        # 热更 vs 重启
 │   ├── cordis.md         # Cordis 概念与插件写法
 │   ├── architecture.md   # 架构与扩展点映射
