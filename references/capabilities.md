@@ -32,15 +32,7 @@ export function apply(ctx: Context) {
 
 ### 功能 → 机制（速查）
 
-| 想做什么 | 挂哪里 |
-|---|---|
-| 拦截/改写工具调用 | `tools/pre-execute`（waterfall）或 `ctx.tools.guard()` |
-| 包装工具执行（超时/重试） | `tools/execute` |
-| 改工具结果 | `tools/post-execute` |
-| 渲染会话 UI | `session/event` + `agents` |
-| Chat 自定义行 | `ConversationNodeDefinition`（client） |
-| 外部 IDE/CLI 接 agent | 协议桥 + `ctx.agents` / `ctx.sessions` |
-| 接外部系统现成的 MCP 工具 | `@deepseek-ai/dsh-mcp-client` 桥接或纯插件承载（[mcp.md](mcp.md)） |
+完整映射表见 [architecture.md「新行为去哪」](architecture.md#新行为去哪goal--mechanism-官方映射)——不在此重复。工具执行管线专属的挂点（`tools/pre-execute` / `guard` / `execute` / `post-execute` / `result`）见下文[「执行策略与观测」](#执行策略与观测)。
 
 ## Web Chat 自定义行（Conversation Node）
 

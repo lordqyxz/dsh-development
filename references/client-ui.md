@@ -45,7 +45,7 @@ window.__ModuleLoader__.load({ id: "dsh-config-sync", factory: (require) => {
 
 **正确模式（真机实证，DSH 0.2.0-rc.1 / rc.2，dsh-ark-quota v0.2.1 同款）**：宿主注册**插件自有路由**（`ctx.webServer.register`，官方一等公民，见 [web-server.md](https://github.com/deepseek-ai/DeepSeek-Harness/blob/master/docs/subsystems/web-server.md)）读写配置；客户端设置卡用 `fetch` 调这些路由，完全不碰 settingsScope。
 
-> ⚠️ **`ctx.settings.register()` 不存在**（DSH 0.2.0-rc.1 / rc.2 的 `ctx.settings` = SettingsForms，只有 `configure / describe / update / replace / mutate`，见官方 docs/subsystems/settings.md）。旧文档教的 register 会让插件宿主半区以 `TypeError: ctx.settings.register is not a function` 拒绝激活——mock ctx 的冒烟测试测不出来，只有真机暴露。
+> ⚠️ **`ctx.settings.register()` 不存在**（DSH 0.2.0-rc.1 / rc.2 的 `ctx.settings` = SettingsForms，公开面 = `configure / describe / update / replace / mutate` + `writable` / `documentPath` / `prepareDocument` getter，无 register，见官方 docs/subsystems/settings.md 与快照 references/snapshots/）。旧文档教的 register 会让插件宿主半区以 `TypeError: ctx.settings.register is not a function` 拒绝激活——mock ctx 的冒烟测试测不出来，只有真机暴露。
 
 真实接缝 = **插件自己的 profile entry**（官方 speech-to-text 同款，dsh-ark-quota 仓库 docs/ 有真机全流程验证记录）：
 

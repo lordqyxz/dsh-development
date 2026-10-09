@@ -32,6 +32,12 @@
 - 版本：`0.2.0-rc.2`
 - 事件：`["loader/config-update"]`
 
+## @deepseek-ai/cordis-plugin-loader（事件面补充，2026-10-14 实证）
+
+- 版本：`1.0.5`
+- 事件：`loader/volatile-update`（lib/index.js L420，volatile-only 配置变更后对本 fiber emit；client-ui.md 的热应用通知依赖它）
+- ⚠️ 快照盲区：本快照的事件面只 grep 了 dsh-app-boot 包；`loader/*` 事件分散在 cordis-plugin-loader 等包里，以源码 grep 为准。
+
 ## @deepseek-ai/dsh-config-editor
 
 - 版本：`0.2.0-rc.2`

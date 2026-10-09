@@ -28,13 +28,13 @@ DSH 无现成插件——官方仅文档化模式（extension-cookbook：替换�
 
 ## 已知坑
 
-- **bundle 重复 insert**：`dsh plugin add` 已把 bundle patch 层叠进树，profile `cordis.patch.yml` 再 `- insert:` 同一 **id** → `duplicate loader entry id`，`dsh web` 起不来。bundle 插件只写 `- id: xxx` 改 config/disabled；非 bundle 才 insert。
-- **GitHub 装配名 ≠ package.json name**：loader 按 bundle patch 的 `name:` import；`dependencies` 键若用 GitHub org 别名而包内 name 不同，会 `Cannot find package`。修法：`dependencies` 键与 patch `name:` 保持一致；**bundles 只列一份**——别对 alias 依赖再跑 `plugin add`（`reconcilePlugins` 会把每个带 `dsh.bundle` 的 dependency 都追加进 bundles）。
-- **DSH 升级后 fallback 错位**：`healProfilesModuleFallback` 每次启动跑，但旧 `profiles/node_modules` 软链可能仍指向过期 global/store → 首页 400。升级后 `cd ~/.dsh/profiles/web && pnpm install` + `dump-config` 验合成；查 `dsh-host-webserver` 链接版本。
+- **bundle 重复 insert**：`dsh plugin add` 后 profile patch 又 insert 同一 id → `duplicate loader entry id`。机理与修法见 [plugins.md 常见故障表](plugins.md#常见故障本机实证)
+- **GitHub 装配名 ≠ package.json name**：`Cannot find package`——键名对齐 patch `name:`、bundles 只列一份（reconcilePlugins 会把每个带 `dsh.bundle` 的 dependency 都追加进 bundles）。详见 [plugins.md 常见故障表](plugins.md#常见故障本机实证)
+- **DSH 升级后 fallback 错位**：旧 `profiles/node_modules` 软链指向过期 store → 首页 400。升级 ritual 见 [plugins.md](plugins.md#dsh-cli-升级后本机-ritual)
 - **升级后排障是常态**：DSH 处于开发者预览期，官方明示后续版本会有破坏性变更——每次升级先跑上条 ritual（`pnpm install` + `--dump-config`），再逐插件验证（会话调工具名 / curl 路由，见 [restart.md](restart.md)），最后才定位新故障；MCP 桥接实例的重连状态在日志里可见（reconnecting / recovered / disabled-loss）。
-- **宿主依赖边界**：外部插件 import 的 `@deepseek-ai/dsh-*` 放在 `peerDependencies`，并在 `devDependencies` 镜像同一版本；插件自己运行时需要的库才放 `dependencies`。静态扫描提示“可能遮蔽”时，先改清单，再用 `require.resolve`/realpath 确认实际解析，不要只凭 warning 断言运行时重复。
-- **官方与已安装分类**：first-party 包、安装目录提供的 optional bundle、in-box bundle、profile 直接依赖是四个不同概念。profile 直接 `pnpm add` 可能让官方包出现在“已安装”分组；要恢复安装目录所有权，移除直接依赖，保留必要的 bundle 启用项并重启。
-- **卸载不只看 pnpm**：移除插件后检查 `package.json`、lockfile、`dsh.profile.bundles`、profile/fallback `node_modules` 链接和 `--dump-config`；孤立链接只按精确目标删除，源码 checkout 不动。
+- **宿主依赖边界**：外部插件 import 的 `@deepseek-ai/dsh-*` 放 `peerDependencies` + 同版本 `devDependencies`；静态 warning 先改清单再 `require.resolve` 实证。归属判断与审计命令见 [dependencies.md](dependencies.md)
+- **官方与已安装分类**：first-party 包 / optional bundle / in-box bundle / profile 直接依赖是四个概念；恢复分类的方法见 [dependencies.md](dependencies.md#官方插件不是profile-直接安装)
+- **卸载不只看 pnpm**：manifest → lockfile → bundles 列表 → node_modules 链接 → `--dump-config` 五步核验，命令见 [dependencies.md 审计顺序](dependencies.md#审计顺序)与 [plugins.md](plugins.md#卸载后的残留检查)
 - **`list slot ... requires options.id`**：这是客户端插件与当前 slots 注册契约不匹配，或旧客户端包仍被加载。先从堆栈和 `--dump-config` 找注册插件，核对已安装版本与当前宿主；修复应补齐当前契约要求的 `options.id` 或升级/回退配套插件，不要把某个本地 no-op patch 当成通用方案。
 - **`profile reload requires the root Include entry`**：先确认当前 app-boot 版本的 root Include 约定、`--dump-config` 和 profile bundle 层；不要盲目在用户 patch 中插入 root Include，因为可能掩盖旧安装锚点或重复 loader entry。
 - **`failed to import` 的 generic warning**：先用 `--dump-config` 确认 bundle 已进入组合树，再在插件目录执行 `node --check`/模块导入和 `require.resolve`，检查构建产物、peer 依赖与 `allowBuilds`；只看 UI warning 无法区分导入失败、版本错位和配置未启用。

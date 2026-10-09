@@ -100,12 +100,12 @@ DSH 处于开发者预览期、持续发版（rc.1 → rc.2 → …），skill �
 - **宿主包被插件遮蔽**：外部插件 import 的 `@deepseek-ai/dsh-*` 不应放在 `dependencies`；放入 `peerDependencies`，并以相同版本镜像到 `devDependencies`，详见 [dependencies.md](references/dependencies.md)。
 - **官方插件显示为“已安装”**：先区分安装目录提供的 optional bundle 与 profile 的直接依赖；不要为安装目录已经提供的官方 bundle 再 `pnpm add` 到 profile。
 - **卸载后仍有插件痕迹**：同时检查 profile `package.json`、lockfile、`dsh.profile.bundles`、`node_modules` 链接和 `--dump-config`，再重启验证；不要只看 `pnpm remove` 的退出码。
-- **`ctx.settings.register` 不存在（真机必炸）**：DSH 0.2.0-rc.1/rc.2 的 `ctx.settings` 没有 register——照旧文档写，宿主半区以 `TypeError: ctx.settings.register is not a function` 拒绝激活（mock 测试测不出）。真实接缝 = 自己的 profile entry：Config 可写字段 `.volatile()`（schemastery ≥3.18.4），写 `ctx.settings.update(ctx.fiber.entry?.options.id, patch)`，读 config 的 volatile refs（[client-ui.md](references/client-ui.md)）。
+- **`ctx.settings.register` 不存在（真机必炸）**：rc.1/rc.2 无此 API，照旧文档写宿主半区拒绝激活（mock 测不出）；真实接缝 = 插件自有路由 + `ctx.settings.update(ctx.fiber.entry?.options.id, patch)` + 可写字段 `.volatile()`（schemastery ≥3.18.4）→ [client-ui.md](references/client-ui.md)。
 - **hybrid 插件 GUI 安装后不激活**：无 `dsh.bundle` 的包经插件管理器只落普通依赖，宿主半区不挂载——`package.json` 必须声明 `dsh.bundle.patch`（[plugins.md](references/plugins.md)）。
 - **`ERR_PNPM_ADDING_TO_ROOT`（装插件）**：profile 是 pnpm workspace root 而 plugin-manager 不带 `-w`（rc.1/rc.2 均如此）——CLI 加 `-w` 或宿主侧打补丁；GitHub spec 走 ssh 报 Host key verification 就 insteadOf 重写 https（[troubleshooting.md](references/troubleshooting.md)）。
 - **设置保存假成功**：第三方 `settingsScope` 被白名单拒 → 走插件自有路由 + 宿主 `ctx.settings.update(entry.options.id, patch)`（[client-ui.md](references/client-ui.md)）。
 - **curl 200 HTML**：未注册路由回退 SPA 首页 → 看 `content-type` 是否为 `application/json`。
-- **`agents.create` 不传 `setup` = 空全局层**：`meta.agentPreset` 只写会话 header、不挂载组合（无 bash/fs/skill，**创建成功不报错**）；程序化建会话必须 `setup: (agentCtx) => ctx.agentPresets.mount(agentCtx, id?)`，验证看会话日志 `request/header` 的实际工具清单（[architecture.md](references/architecture.md) / [troubleshooting.md](references/troubleshooting.md)）。
+- **`agents.create` 不传 `setup` = 空全局层**：`meta.agentPreset` 只写 header 不挂载（创建成功不报错、无 bash/fs/skill）；必须 `setup: (agentCtx) => ctx.agentPresets.mount(agentCtx, id?)`，验证看会话日志 `request/header` 实际工具清单 → [architecture.md](references/architecture.md)。
 
 ## 本机环境（摘要）
 

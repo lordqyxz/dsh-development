@@ -208,15 +208,9 @@ ls -l ~/.dsh/profiles/node_modules/@deepseek-ai/dsh-host-webserver
 
 > 用户安装见上一节；本节面向**编写**要分发的 bundle。真源：`docs/user/develop/basic/publish.zh.md`。
 
-两个概念都由 `package.json` 的 `dsh` 字段描述，但回答不同问题：
+bundle / profile 两个概念的定义见[上文「两个概念（官方）」](#两个概念官方)——不在此重复。作者侧要点：
 
-| 概念 | manifest | 回答 | 谁在用 |
-|---|---|---|---|
-| **bundle**（你编写/分发的东西） | `dsh.bundle.patch` | "这个包贡献什么？" → 一个 patch 文件（insert/override 插件行） | 被 profile 列出 |
-| **profile**（用户启动的组成） | `dsh.profile.bundles` | "哪些 bundle 按什么顺序组成这套？" | `dsh --profile <name>` 启动 |
-
-- bundle 的 `cordis.patch.yml` 里 `- insert:` 插件行，`name` = **`package.json` 的 `name` 字段**（Node 从 profile 目录 resolve）。
-- **bundle 与 profile 不可兼得**于同一包。无 `dsh.bundle` → 只当普通依赖。
+- bundle 的 `cordis.patch.yml` 里 `- insert:` 插件行，`name` = **`package.json` 的 `name` 字段**（Node 从 profile 目录 resolve）；**bundle 与 profile 不可兼得**于同一包，无 `dsh.bundle` → 只当普通依赖。
 - 最小 bundle manifest 示例（官方 `publish.zh.md`）：
 
 ```json
