@@ -82,6 +82,16 @@ export function apply(ctx: Context) {
 | 事件 | emit / bail / waterfall（须 `next()`）/ serial / parallel |
 | 可逆注册 | `ctx.effect()` / `ctx.on()`，卸载自动清理 |
 
+## DSH 版本与文档路由（防 API 腐化）
+
+DSH 处于开发者预览期、持续发版（rc.1 → rc.2 → …），skill 静态参考**必然滞后**于已安装版本。铁律与机制：
+
+1. **API 实证协议**：任何 `ctx.*` API 用法，先对照本机已安装源码验证（`<DSH安装根>/node_modules/@deepseek-ai/<pkg>/` 的 README + 源码），或真机探针；skill 文本与安装源码冲突时**以源码为准**，并回写修正 skill。实测教训：`ctx.settings.register` 在教程里存在、在 rc.1/rc.2 里都不存在，mock 测试测不出，只有真机暴露。
+2. **快照按版本路由**：`references/snapshots/dsh-<version>.md` 记录各版本的 API 面（服务方法、事件、探针结果）。开工先 `dsh --version`：
+   - 对应快照存在 → 读它，并留意文中标注的探针差异；
+   - 不存在 → `node tools/api-snapshot.mjs --out references/snapshots/dsh-<version>.md` 现场生成（自动探测本机 DSH，或 `--dir` 指定安装根/容器内安装根）。
+3. **快照 ≠ 上游原版**：宿主侧打过补丁的安装（如 plugin-manager 的 `-w`）会进快照，标注「本机打过补丁」的行以上游 tarball 复核为准。
+
 ## 高频坑（展开见 troubleshooting.md）
 
 - **duplicate loader entry id**：bundle 已 `plugin add`，patch 又 `insert` 同一 id → 只保留 `- id:` 改 config。
