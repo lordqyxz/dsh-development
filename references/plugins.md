@@ -26,6 +26,8 @@ dsh web --patch ./scratch-plugin/cordis.yml    # 或 pnpm dsh web --patch ...（
 
 原型验证通过后 → 按[打包与发布（作者侧）](#打包与发布作者侧-bundle) 做成 bundle → `dsh plugin add` 装进 profile。
 
+> **hybrid 插件（宿主半区 + `dsh.client`）要支持 GUI/CLI 一键安装，必须在 `package.json` 声明 `dsh.bundle.patch`**：无 `dsh.bundle` 的包经插件管理器安装只是普通依赖（stderr 警告、不进 bundles）——宿主半区**不会激活**，必须手动再补 insert 行。声明后 `dsh plugin add` 自动完成三件事：依赖写入 + 追加 `dsh.profile.bundles` + 应用 bundle patch。真机实证见 dsh-ark-quota v0.2.1（`dsh.bundle.yml`）。注意升级到 bundle 安装前，先删掉 profile patch 里手写的同名 insert 行（duplicate loader entry id）。
+
 ### 动态注入与 profile bundle 的边界
 
 super-injector 的 `dev_inject_plugin` 是运行时直接注入：它记录 registry、建立 profile link 并调用 loader，不要求包声明 `dsh.bundle`。`dev_install_package` 则把包写入 profile 的 `dependencies` 和 `dsh.profile.bundles`，所以目标包必须在 `package.json` 声明 `dsh.bundle.patch`；只声明 `dsh.client` 的 hybrid 包不能直接走 `dev_install_package`，否则新版 dsh 会在启动时拒绝该 profile。需要持久安装时，为 host entry 提供一个 bundle patch；只做本地试验时使用 `dev_inject_plugin`。

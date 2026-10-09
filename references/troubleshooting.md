@@ -3,7 +3,7 @@
 ## 验证清单
 
 1. **语法**：`node --check lib/index.js`（宿主）与 `node --check lib/client.js`（客户端 bundle）
-2. **全链路模拟**（不起 DSH）：mock ctx（`settings.register` / `webServer.register` / `effect`）+ 临时目录跑引擎；断言关键路径（排除/符号链接/stale 删除/幂等二次 0 复制）
+2. **全链路模拟**（不起 DSH）：mock ctx（`webServer.register` / `effect` / `settings.update` + `loader.locate` / `on`+`emit`）+ 临时目录跑引擎；断言关键路径。⚠️ mock 对不齐真机 API 会漏掉最贵的那类 bug——`ctx.settings.register` 这类「教程有、真机没有」的 API 在 mock 里永远通过，必须再做第 7 步真机验证
 3. **宿主路由冒烟**（mock ctx 驱动 webServer handler，用 `Readable` stream 模拟 body）：`GET /xxx/status` 回布尔且**不回显 secret**；`POST /xxx/config` 白名单键、空值 400、GET 405、持久化进 `scope.update`
 4. **依赖清单**：插件自己的 DSH 宿主 import 只能在 `peerDependencies` + `devDependencies`；profile 直接依赖、lockfile、bundle 列表和实际 `require.resolve` 路径一致
 5. **客户端结构**：模拟浏览器加载 bundle → 断言 exports.apply/inject、slot 条目形状；slot 注册必须满足当前宿主的 options schema
@@ -48,6 +48,9 @@ DSH 无现成插件——官方仅文档化模式（extension-cookbook：替换�
 - `detectBaseUrl` 等解析逻辑先用 node 回放真实输出验证再信
 - 改 `cordis.patch.yml` / 插件代码后没生效 → 先按 [restart.md](restart.md) 判断是否需要重启、再看报错新旧，别盲目改配置
 - **pnpm 拦 postinstall**：esbuild 等依赖装完要 `pnpm approve-builds`，否则 build 时静默缺二进制
+- **`ERR_PNPM_ADDING_TO_ROOT`（`dsh plugin add` / GUI 安装插件报错，2026-10-09 真机实证）**：profile 目录是 pnpm workspace root（模板 profile 自带 `pnpm-workspace.yaml` 的 `packages: [.]`），而 dsh-plugin-manager 0.2.0-rc.1/rc.2 的 installBundle 跑 `pnpm add <spec>` 不带 `-w`。解法：CLI 直接 `dsh plugin add -w <spec>`；宿主侧一劳永逸则给 `<dsh>/node_modules/@deepseek-ai/dsh-plugin-manager/lib/index.js` 的 `"add"` 调用点插 `"-w"`（先备份）。注意只删 `pnpm-workspace.yaml` 会引发 `packages field missing or empty`——文件要么整个删（会丢 `nodeLinker: hoisted` 等设置，改配 `.npmrc`），要么保留 `packages: [.]` 配合 `-w`。
+- **`Host key verification failed` / `git ls-remote git+ssh://git@github.com/...`（装 GitHub 插件）**：pnpm 对 GitHub spec 解析成 ssh，宿主无 GitHub 密钥必挂。宿主侧 `git config --global url."https://github.com/".insteadOf "git+ssh://git@github.com/"` 重写为 https。另外 GitHub 链路抖动（尤其国内服务器）会让 add 间歇性失败，重试即可；CLI 也可 `dsh plugin add -w <本地克隆路径>` 绕开网络。
+- **settings ns 陷阱**：`settings.update` 的 ns 必须是 entry 本地 id（`ctx.fiber.entry?.options.id`）；`ctx.loader.locate()` 在 profile include 下返回 `"include:<id>"` 组合 id，直接当 ns 会被 `No configurable plugin entry` 拒绝。详见 [client-ui.md](client-ui.md)。
 - **esbuild devDependency 不随 profile 装**：link 插件被 profile `pnpm install` 时只装它的运行时 dependencies；构建工具要在插件目录自己 `pnpm i`（devDependencies）
 - **客户端 bundle 改动 = 刷新即可**：`serveBundle` 不校验 rev 直接读磁盘，别为此重启（见重启语义表）
 - **slots 注册选项白名单化**：`ctx.slots.register` 只存 key/id/order/label/priority 等固定字段，**自定义 option（如 `icon`）被静默丢弃** → 想给 shell 塞自定义元数据定制渲染走不通，得改 shell 渲染（见 [client-ui.md](client-ui.md#在设置里加-logo--dsh-定制-shell-渲染)）。

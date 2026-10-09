@@ -40,33 +40,45 @@ window.__ModuleLoader__.load({ id: "dsh-config-sync", factory: (require) => {
 ### 设置页注册（settings.section 槽位）
 
 > ⚠️ **第三方命名空间的设置读写被平台白名单挡死（settings-not-exposed）——本次方舟额度"保存了没生效"的根因。**
-> DSH 配置客户端（`dsh-host-apiproxy`）只暴露平台自己的命名空间：LLM 模型 provider + `WEB_SETTINGS_NAMESPACES` + `PRODUCT_SETTINGS_NAMESPACES`。插件 `ctx.settings.register` 的命名空间**读（settings.describe）和写（settings.mutate）都被拒绝**，且客户端 `SettingsScopeController` **静默吞掉失败**（resolve 而非 reject）→ GUI 提示"已保存"但什么都没写入。
+> DSH 配置客户端（`dsh-host-apiproxy`）只暴露平台自己的命名空间：LLM 模型 provider + `WEB_SETTINGS_NAMESPACES` + `PRODUCT_SETTINGS_NAMESPACES`。第三方插件 entry 的命名空间**读（settings.describe）和写（settings.mutate）都被拒绝**，且客户端 `SettingsScopeController` **静默吞掉失败**（resolve 而非 reject）→ GUI 提示"已保存"但什么都没写入。
 > 这是**平台安全边界**（源码级、官方教程未覆盖），没有插件扩展点。**别在第三方插件里用 `ctx.settingsScope.bind()` + `scope.set()` / `hooks.settings` + `useSettings` 读写配置**——那套只对平台命名空间有效。
 
-**正确模式（本机实证，dsh-ark-quota / dsh-config-sync 同款）**：宿主注册**插件自有路由**（`ctx.webServer.register`，官方一等公民，见 [web-server.md](https://github.com/deepseek-ai/DeepSeek-Harness/blob/master/docs/subsystems/web-server.md)）读写命名空间；客户端设置卡用 `fetch` 调这些路由，完全不碰 settingsScope。
+**正确模式（真机实证，DSH 0.2.0-rc.1 / rc.2，dsh-ark-quota v0.2.1 同款）**：宿主注册**插件自有路由**（`ctx.webServer.register`，官方一等公民，见 [web-server.md](https://github.com/deepseek-ai/DeepSeek-Harness/blob/master/docs/subsystems/web-server.md)）读写配置；客户端设置卡用 `fetch` 调这些路由，完全不碰 settingsScope。
+
+> ⚠️ **`ctx.settings.register()` 不存在**（DSH 0.2.0-rc.1 / rc.2 的 `ctx.settings` = SettingsForms，只有 `configure / describe / update / replace / mutate`，见官方 docs/subsystems/settings.md）。旧文档教的 register 会让插件宿主半区以 `TypeError: ctx.settings.register is not a function` 拒绝激活——mock ctx 的冒烟测试测不出来，只有真机暴露。
+
+真实接缝 = **插件自己的 profile entry**（官方 speech-to-text 同款，dsh-ark-quota 仓库 docs/ 有真机全流程验证记录）：
 
 ```ts
 // 宿主 lib/index.js
 import { type Context } from '@deepseek-ai/cordis'
-import z from '@deepseek-ai/schemastery'   // schemastery 默认导出即 zod 兼容 API（z.object / .role()）
-// ① 注册命名空间（获得 scope：get / watch / update）
+import z from '@deepseek-ai/schemastery'   // ⚠️ 必须 ^3.18.4：.volatile() 在 3.18.1 不存在
 export const inject = ['settings', 'webServer']
-export function apply(ctx: Context) {
-  const scope = ctx.settings.register('my-ns', z.object({
-    token: z.string().role('secret').default(''),
-  }), { base: { token: '' } })
-  // ② 插件自有路由：GET 状态（绝不回显 secret，只回布尔）、POST 写配置（白名单键）
-  const readBody = async (req: IncomingMessage): Promise<Record<string, unknown>> =>
-    JSON.parse(await new Promise((res) => { let b = ''; req.on('data', (c) => b += c); req.on('end', () => res(b)) }))
+export const Config = z.object({
+  token: z.string().role('secret').default('').volatile(),   // 可写字段必须 .volatile()
+})
+export function apply(ctx: Context, config: any) {
+  // 读：config 即生效配置——schemastery volatile refs（.get()），热应用后由 loader 原位更新
+  const read = (v: any, fb: any) => typeof v?.get === 'function' ? (v.get() ?? fb) : (v ?? fb)
   ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: '/my-plugin/config', handler: async (req, res) => {
     if (req.method !== 'POST') return res.writeHead(405).end()
     const patch = Object.fromEntries(Object.entries(await readBody(req)).filter(([k, v]) => k === 'token' && typeof v === 'string'))
     if (Object.keys(patch).length === 0) return res.writeHead(400).end('{"ok":false}')
-    await scope.update(patch)          // 直写用户层，绕过代理白名单，持久化 settings.yaml
+    // ns = entry 本地 id（官方 settings 文档：表单命名空间 = entry 本地 id）
+    const ns = ctx.fiber?.entry?.options?.id ?? null
+    await ctx.settings.update(ns, patch)   // 合并进 entry 用户层并热应用（volatile-only 变更不重挂插件）
     res.writeHead(200).end('{"ok":true}')
   }}), 'route-my-plugin-config')
+  // 配置热应用通知：loader 原位更新 ref 后对本 fiber emit（官方事件，docs/subsystems/settings.md）
+  ctx.on('loader/volatile-update', () => { /* 失效缓存 */ })
 }
 ```
+
+坑位（全部真机踩过）：
+- **ns 不能用 `ctx.loader.locate()`**：profile include 下它返回 `"include:<id>"` 组合 id，`settings.write` 按 `entry.options.id` 匹配 → `No configurable plugin entry` 拒绝。用 `ctx.fiber.entry?.options.id`。
+- **可写字段必须 `.volatile()`**：否则 `settings.update` 以 "no volatile fields" 拒绝（`dsh-settings` 的 `volatileForm` 只投影 volatile 字段）。
+- **`.volatile()` 需要 schemastery ≥3.18.4**：npm 上 3.18.1 没有该 API；插件自带依赖会遮蔽宿主的 3.18.4，必须声明 `^3.18.4`。
+- 持久化位置是 **profile `cordis.patch.yml` 的 entry 用户层**（不是 settings.yaml——settings.yaml 已是 legacy import 路径）。
 
 ```tsx
 // 客户端 lib/client.js（inject = ['slots']，不要 settingsScope）
@@ -79,19 +91,22 @@ function MySection() {
 
 要点：
 - **读**：`GET /xxx/status` 只回 `{ ok, configured }` 布尔，**绝不回显 secret 值**（`role('secret')` 只写字段 + 不回传）。
-- **写**：`POST /xxx/config` 只接受固定形状白名单键（防 SSRF/字段注入）；`scope.update(patch)` 宿主侧直写，绕开代理白名单。
+- **写**：`POST /xxx/config` 只接受固定形状白名单键（防 SSRF/字段注入）；宿主侧 `ctx.settings.update(ns, patch)` 直写 entry 用户层，绕开代理白名单。
 - **保存后联动**：模块级 `refreshSignal`（`{ listeners:Set, subscribe(fn)→disposer, notify() }`），设置卡保存成功 `notify()`，widget `useEffect` 里 `subscribe(() => q.load(true))`。
-- 宿主只用 `scope.get()`（base+用户层）读生效配置，别读静态 `config`。
+- 宿主读生效配置用 apply 的 `config`（volatile refs，`.get()`），别读静态快照。
 - 槽位注册形状：`ctx.slots.inject('settings.section', () => ctx.slots.register({ name:'settings.section', id, order, label }, SectionComponent))` —— `settings.section` 是设置页**左侧导航整页**（与 built-in 分区平级，order 如 200/300），不是「插件」Tab 里的一张小卡。`settings.section`（整页）/ `settings.general.item`（General 里一行）/ `settings.action`（面板头部动作）；还有 `sidebar.footer.action`（侧栏小组件）、`conversation.view`（会话 tab）。
 
-### settings scope（读写契约，注意平台边界）
+### settings 读写契约（真机实证，DSH 0.2.0-rc.1 / rc.2）
 
-| 半区 | API | 第三方命名空间可用？ |
+| 半区 | API | 说明 |
 |---|---|---|
-| 宿主 | `ctx.settings.register(ns, Schema, { base })` → scope：`get()`（base+用户层解析值）、`watch(cb)`（commit 后触发）、**`update(patch)`**（合并写入用户层并持久化）、`replace(section)` | ✅ **`update`/`get`/`watch` 宿主侧全可用**（这是绕开代理白名单的通道） |
-| 客户端 | `ctx.settingsScope.bind({ namespace })` → controller：`getSnapshot()`/`subscribe()`、**`set(field, value)`**/`unset(field)`（走 `/api` settings.mutate） | ❌ **被白名单挡**：describe + mutate 都回 `settings-not-exposed`，客户端**静默 resolve**（"已保存"假象） |
+| 宿主（读） | apply 的 `config`（schemastery volatile refs，`.get()`） | ✅ 即生效配置（bundle/insert 基础层 + entry 用户层合并），热应用后 loader 原位更新 ref |
+| 宿主（写） | `ctx.settings.update(ctx.fiber.entry?.options.id, patch)` | ✅ 合并进 entry 用户层并热应用；ns 必须是 entry 本地 id，**不能**用 `loader.locate()`（include 前缀组合 id） |
+| 宿主（热应用通知） | `ctx.on('loader/volatile-update', cb)` | ✅ 官方事件；volatile-only 变更走 `_commitVolatile`，不重挂插件 |
+| 宿主 | ~~`ctx.settings.register(ns, Schema, { base })`~~ | ❌ **不存在**（SettingsForms 只有 `configure/describe/update/replace/mutate`）——照旧文档写会拒绝激活 |
+| 客户端 | `ctx.settingsScope.bind({ namespace })` → `getSnapshot()`/`set()`/`unset()` | ❌ **被白名单挡**：describe + mutate 都回 `settings-not-exposed`，客户端**静默 resolve**（"已保存"假象） |
 
-**结论**：UI 读写配置一律走**插件自有路由 → 宿主 `scope.update(patch)`**（宿主集中校验、白名单键）；客户端 `settingsScope.set` 只适用于平台命名空间。宿主只读用 `scope.get()`，热生效免重启（见重启语义表）。
+**结论**：UI 读写配置一律走**插件自有路由 → 宿主 `ctx.settings.update(entry.options.id, patch)`**（宿主集中校验、白名单键）；客户端 `settingsScope.set` 只适用于平台命名空间。可写字段在 Config 里必须 `.volatile()`（schemastery ≥3.18.4）。
 
 ### 官方文档化的设置卡模式（`cookbook/adding-a-settings-card.md`，与上面本机实证并行看）
 
